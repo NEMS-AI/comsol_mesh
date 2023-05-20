@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comsol_mesh"
+version = "0.0.1"
+authors = [
+    {name = "Alex", email = "alex.nunn@pm.me"},
+]
+description = "Package for parsing COMSOL meshes & output"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { file = "LICENSE" }
+keywords = ['COMSOL', 'mesh', 'interpolation', 'eigen-analysis']
+
+dependencies = [
+    'pandas', 'numpy', 'scipy'
+]
+
+[tool.setuptools.packages.find]
+where = ['comsol_mesh']
