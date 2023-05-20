@@ -3,6 +3,7 @@ Methods for interpolating and performing basic quadrature over unstructured mesh
 """
 
 import numpy as np
+import scipy as sc
 
 
 def triangle_pcoordinates(p, ps):
