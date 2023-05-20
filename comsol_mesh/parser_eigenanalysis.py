@@ -38,7 +38,7 @@ class Eigenmodes:
         return self.modes.shape[2]
     
     @classmethod
-    def from_csv(cls, path, mode_dim):
+    def from_csv(cls, path, mode_dim=3):
         """Return Eigenmodes from COMSOL eigen-analysis CSV file
         
         Parameters
