@@ -5,8 +5,8 @@ import re
 import numpy as np
 
 
-class COMSOLMesh:
-    """Container for mesh objects and vertices"""
+class COMSOLFile:
+    """Container for COMSOL file header and objects"""
     def __init__(self, header, objects=[]):
         self.header = header
         self.objects = []
@@ -17,6 +17,9 @@ class COMSOLMesh:
     @property
     def n_objects(self):
         return len(self.header['types'])
+    
+    def __repr__(self):
+        return f'{self.__class__.__name__}(n_object={self.n_objects})'
 
 
 class COMSOLParser:
@@ -185,7 +188,7 @@ class COMSOLParser:
         with open(path) as stream:
             parser = cls(path, stream)
             header = parser.parse_header()
-            mesh = COMSOLMesh(header)
+            mesh = COMSOLFile(header)
             
             for i in range(mesh.n_objects):
                 obj = parser.parse_object()
