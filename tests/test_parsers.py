@@ -103,7 +103,7 @@ class TestCOMSOLParser:
     def test_parse_header(self):
         path = 'tests/data/mesh_example_intro.mphtxt'
         with open(path) as stream:
-            parser = COMSOLFileParser(path, stream)
+            parser = COMSOLMeshParser(path, stream)
             header = parser.parse_header()
             
             assert set(header.keys()) == set(['version', 'tags', 'types'])
@@ -118,7 +118,7 @@ class TestCOMSOLParser:
             for i in range(11):
                 stream.readline()
 
-            parser = COMSOLFileParser(path, stream)
+            parser = COMSOLMeshParser(path, stream)
             obj = parser.parse_object()
             
             # Check header & vertices
@@ -160,4 +160,4 @@ class TestCOMSOLParser:
 
     def test_parser(self):
         path = 'tests/data/comsol_meshes/mesh_example_intro.mphtxt'
-        obj = COMSOLFileParser.parse(path)
+        obj = COMSOLMeshParser.parse(path)

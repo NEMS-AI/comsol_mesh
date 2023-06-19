@@ -8,8 +8,16 @@ import pandas as pd
 from dataclasses import dataclass
 
 
-class COMSOLFile:
-    """Container for COMSOL mesh file header and objects"""
+class COMSOLMesh:
+    """Container for COMSOL mesh file header and objects
+    
+    Attributes
+    ----------
+    header : dict
+        dictionary of mesh information
+    objects : list[dict]
+        list of dictionaries described objects within the comsol mesh
+    """
     def __init__(self, header, objects=[]):
         self.header = header
         self.objects = []
@@ -21,11 +29,15 @@ class COMSOLFile:
     def n_objects(self):
         return len(self.header['types'])
     
+    @classmethod
+    def from_file(cls, path):
+        return COMSOLMeshParser.parse(path)
+    
     def __repr__(self):
         return f'{self.__class__.__name__}(n_object={self.n_objects})'
 
 
-class COMSOLFileParser:
+class COMSOLMeshParser:
     """Parser for COMSOL mesh .mphtxt files
 
     Examples
@@ -46,7 +58,7 @@ class COMSOLFileParser:
         with open(path) as stream:
             parser = cls(path, stream)
             header = parser.parse_header()
-            mesh = COMSOLFile(header)
+            mesh = COMSOLMesh(header)
             
             for i in range(mesh.n_objects):
                 obj = parser.parse_object()
@@ -219,7 +231,7 @@ class COMSOLField:
     A field is a vector or tensor quantity with shape `field_shape` defined on a
     collection of `N` points with dimension `dim_point`.
 
-    Parameters
+    Attributes
     ----------
     points : (N, dim_point) ndarray
         points which the eigenmodes are provided on
@@ -232,6 +244,35 @@ class COMSOLField:
     @property
     def n_points(self):
         return self.points.shape[0]
+    
+    @classmethod
+    def from_file(cls, path, *args, **kwargs):
+        return COMSOLFieldParser.parse(path, *args, **kwargs)
+
+
+class Eigenmodes(COMSOLField):
+    @classmethod
+    def from_file(cls, path, point_dim=3, mode_dim=3):
+        """Return Eigenmodes from COMSOL eigen-analysis CSV file
+        
+        Parameters
+        ----------
+        path : str | pathlib.Path
+            path to CSV file
+        point_dim : int
+            dimension of points the field is defined on
+        mode_dim : int
+            dimension of modes in eigen-analysis. For example the deflection of 
+            a structure in a 3D analysis is 3-dimensional.
+        
+        Returns
+        -------
+        :COMSOLField
+            modes of eigen-analysis
+        """
+        field = super().from_file(path, point_dim)
+        field.values = field.values.reshape(field.n_points, -1, mode_dim)
+        return field
 
 
 class COMSOLFieldParser:
@@ -294,27 +335,3 @@ class COMSOLFieldParser:
                     break
             return header_lines
         
-
-class EigenmodesParser(COMSOLFieldParser):
-    @classmethod
-    def parse(cls, path, point_dim=3, mode_dim=3):
-        """Return Eigenmodes from COMSOL eigen-analysis CSV file
-        
-        Parameters
-        ----------
-        path : str | pathlib.Path
-            path to CSV file
-        point_dim : int
-            dimension of points the field is defined on
-        mode_dim : int
-            dimension of modes in eigen-analysis. For example the deflection of 
-            a structure in a 3D analysis is 3-dimensional.
-        
-        Returns
-        -------
-        :COMSOLField
-            modes of eigen-analysis
-        """
-        field = super().parse(path, point_dim)
-        field.values = field.values.reshape(field.n_points, -1, mode_dim)
-        return field

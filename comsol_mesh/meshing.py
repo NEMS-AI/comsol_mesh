@@ -7,7 +7,8 @@ Includes utitilties for interpolation, integration and random point selection.
 import numpy as np
 
 from scipy.spatial import KDTree
-from parsers import COMSOLFile, COMSOLField
+
+from .parsers import COMSOLMesh, COMSOLField
 
 
 class Mesh:
@@ -36,7 +37,7 @@ class Mesh:
         return self.tet_indices.shape[0]
     
     @classmethod
-    def from_comsol_file(cls, comsol_file: COMSOLFile):
+    def from_comsol_file(cls, comsol_file: COMSOLMesh):
         lowest_vertex_index = comsol_file['lowest_vertex_index']
         points = comsol_file['vertices']
 
