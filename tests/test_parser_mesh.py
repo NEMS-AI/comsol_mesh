@@ -1,7 +1,7 @@
 """
 Test COMSOL mesh parser
 """
-from comsol_mesh.parser_mesh import *
+from comsol_mesh.parsers import *
 
 from pprint import pprint
 
