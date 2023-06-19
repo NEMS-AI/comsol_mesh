@@ -391,7 +391,10 @@ class MeshField:
         float :
             L2 norm of field over mesh
         """
-        pass
+        components = self.integrate_product(self)
+        l2_sq = components.sum()
+        l2_norm = np.sqrt(l2_sq)
+        return l2_norm
 
     def eval_surface(self, surface, tri_idx, tri_params):
         pass

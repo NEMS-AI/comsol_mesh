@@ -36,6 +36,29 @@ class TestMesh:
         mesh = Mesh(points, tet_indices)
         assert mesh.volume() == approx(1)
 
+    def test_cube_volume(self):
+        # Test cube integration
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [1, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [0, 1, 1],
+            [1, 1, 1],
+        ])
+        tet_indices = np.array([
+            [0, 1, 2, 4],
+            [2, 4, 5, 6],
+            [1, 2, 4, 5],
+            [1, 2, 3, 7],
+            [2, 5, 6, 7],
+            [1, 2, 5, 7]
+        ])
+        cube_mesh = Mesh(points, tet_indices)
+        assert cube_mesh.volume() == approx(1.0)
+
 
 class TestSurface:
     def test_areas(self):
@@ -111,3 +134,54 @@ class TestMeshField:
         field = MeshField(mesh, values)
         assert field.integrate() == approx(np.array([1 / 6, 1 / 3]))
 
+    def test_integrate_product(self):
+        # Test 1: Test scalar
+        # ----------------------------------------------------------------------
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ])
+        tet_indices = np.array([[0, 1, 2, 3]])
+        mesh = Mesh(points, tet_indices)
+
+        values1 = np.array([1, 1, 1, 1]).reshape(4, 1)
+        field1 = MeshField(mesh, values1)
+
+        values2 = np.array([1, 1, 1, 1]).reshape(4, 1)
+        field2 = MeshField(mesh, values2)
+        assert field1.integrate_product(field2) == approx(1 / 6)
+
+        # Test 2: Test vector
+        # ----------------------------------------------------------------------
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ])
+        tet_indices = np.array([[0, 1, 2, 3]])
+        mesh = Mesh(points, tet_indices)
+
+        values = np.array([1, 2, -1, 6]).reshape(4, 1)
+        field = MeshField(mesh, values)
+        assert field.integrate_product(field) == approx(53 / 60)
+
+        # Test 3: Test vector
+        # ----------------------------------------------------------------------
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ])
+        tet_indices = np.array([[0, 1, 2, 3]])
+        mesh = Mesh(points, tet_indices)
+
+        values = np.array([
+            [1, 1], [1, 2], [1, -1], [1, 6]
+        ])
+        field = MeshField(mesh, values)
+        assert field.integrate_product(field) == approx(np.array([1/6, 53/60]))
+        
