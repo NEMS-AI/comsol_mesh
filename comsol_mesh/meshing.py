@@ -8,7 +8,7 @@ import numpy as np
 
 from scipy.spatial import KDTree
 
-from .parsers import COMSOLMesh, COMSOLField
+from .parsers import COMSOLObjects, COMSOLField
 
 
 class Mesh:
@@ -37,24 +37,52 @@ class Mesh:
         return self.tet_indices.shape[0]
     
     @classmethod
-    def from_comsol_file(cls, comsol_file: COMSOLMesh):
-        lowest_vertex_index = comsol_file['lowest_vertex_index']
-        points = comsol_file['vertices']
+    def from_comsol_obj(cls, comsol_obj):
+        """Return mesh object using information from COMSOL object
+
+        Parameters
+        ----------
+        comsol_obj : dict
+            dictionary containing information about COMSOL object
+
+        Returns
+        -------
+        Mesh
+        """
+        lowest_vertex_index = comsol_obj['lowest_vertex_index']
+        points = comsol_obj['vertices']
 
         # Find tetrahedral object
-        for type_dict in comsol_file['types']:
+        for type_dict in comsol_obj['types']:
             if type_dict['type_name'] == 'tet':
                 tet_type_dict = type_dict
                 break
         else:
-            raise ValueError('No tetrahedral type in COMSOL object')
+            raise ValueError('No tetrahedral type in COMSOL mesh')
 
         tet_indices = tet_type_dict['element_indices'] - lowest_vertex_index
         return cls(points, tet_indices)
     
     def volume(self):
         """Return volume of mesh"""
-        pass
+        points = self.points
+        tet_indices = self.tet_indices
+
+        vol_acc = 0.0
+
+        for i in range(self.n_tetrahedra):
+            ps = points[tet_indices[i, :], :]  # (4, 3) ndarray of points
+            us = ps[1:, :] - ps[0, :]          # (3, 3) ndarray of point displacements
+            tet_vol = 0.5 * np.linalg.det(us)  # volume of tetrahedra
+            vol_acc += tet_vol
+
+        return vol_acc
+
+    def __repr__(self):
+        return (
+            f'{self.__class__.__name__}('
+            f'n_points={self.n_points}, n_tetrahedra={self.n_tetrahedra})'
+        )
 
 
 class MeshSurface:
