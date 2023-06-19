@@ -85,7 +85,7 @@ class Mesh:
         )
 
 
-class MeshSurface:
+class Surface:
     """Surface of unstructured 3-dimensional mesh
     
     A surface is defined as a collection of triangles
@@ -101,11 +101,14 @@ class MeshSurface:
         self.mesh = mesh
         self.tri_indices = tri_indices
         
-        self.tri_areas = self._triangle_areas(mesh, tri_indices)
+        # Compute triangle areas and normals
+        tri_areas, tri_normals = self._triangle_properties(mesh, tri_indices)
+        self.tri_areas = tri_areas
+        self.tri_normals = tri_normals
 
     @staticmethod
-    def _triangle_areas(self, mesh, tri_indices):
-        """Return areas of surface triangles
+    def _triangle_properties(mesh, tri_indices):
+        """Return areas and normals of surface triangles
         
         Parameters
         ----------
@@ -116,11 +119,15 @@ class MeshSurface:
 
         Returns
         -------
-        areas : (n_triangles,) float ndarray
-            array of triangle areas
+        (areas, normals) : 
+            areas : (n_triangles,) float ndarray
+                array of triangle areas
+            normals : (n_triangles, 3) float ndarray
+                array of triangle normals
         """
         n_triangles = tri_indices.shape[0]
         areas = np.empty(n_triangles)
+        normals = np.empty((n_triangles, 3))
 
         for i in range(n_triangles):
             j1, j2, j3 = tri_indices[i]
@@ -128,12 +135,62 @@ class MeshSurface:
             p2 = mesh.points[j2, :]
             p3 = mesh.points[j3, :]
 
-            area = 0.5 * np.cross(p3 - p1, p2 - p1)
-            areas[i] = area
-        return areas
+            nn = np.cross(p2 - p1, p3 - p1)
+            nn_norm = np.linalg.norm(nn)
 
-    def random_triangle_sample(self, n_samples):
-        """Return random sampling of triangle indices weighted by area
+            areas[i] = 0.5 * nn_norm
+            normals[i, :] = nn / nn_norm
+        return areas, normals
+
+    @staticmethod
+    def _random_triangle_idxs(self, n_samples):
+        """Return the indices of random triangles weighted by area"""
+        tri_areas = self.tri_areas
+        total_area = np.sum(tri_areas)
+        probs = tri_areas / total_area
+        
+        rand_tri_idxs = np.choice(size=n_samples, p=probs)
+        return rand_tri_idxs
+
+    @staticmethod
+    def _random_triangle_points(self, n_samples):
+        """Return random samples of points in canonical triangle
+        
+        A triangle is defined by 3 points (p₁, p₂, p₃) and points within the 
+        triangle can be expressed uniquely as,
+
+            p = p₁ξ₁ + p₂ξ₂+ p₃ξ₃
+        
+        where 0 ≤ ξ_i and ξ₁+ξ₂+ξ₃ = 1. This function returns random points
+        within a triangle by yields random samples of (ξ₁, ξ₂, ξ₃).
+
+        Parameters
+        ----------
+        n_samples : int
+            number of samples
+
+        Returns
+        -------
+        param_samples : (n_samples, 3)
+            random samples of (ξ₁, ξ₂, ξ₃) sampled from uniform distribution
+        """
+        param_samples = np.empty((n_samples, 3))
+    
+        for i in range(n_samples):
+            xi1, xi2 = np.random.uniform(size=2)
+            if xi1 + xi2 < 1:
+                param_samples[i, 0] = xi1
+                param_samples[i, 1] = xi2
+                param_samples[i, 2] = 1 - xi1 - xi2
+            else:
+                param_samples[i, 0] = 1 - xi1
+                param_samples[i, 1] = 1 - xi2
+                param_samples[i, 2] = xi1 + xi2 - 1
+        
+        return param_samples
+
+    def random_point_sample(self, n_samples):
+        """Return random points on surface weighted by area
         
         Parameters
         ----------
@@ -142,13 +199,50 @@ class MeshSurface:
 
         Returns
         -------
-        (n_samples,) int ndarray
-            indices of random triangles
+        rand_points : (n_samples, 3) float ndarray
+            random points on the surface
         """
-        # TODO: Implement
-        pass
+        rand_points = np.empty((n_samples, 3))
+        rand_tri_idxs = self._random_triangle_idxs(n_samples)
+        rand_pt_params = self._random_triangle_points(n_samples)
 
-    
+        for i in range(n_samples):
+            ps = self.mesh.points[rand_tri_idxs[i], :]  # (3, 3) ndarray of points
+            xis = rand_tri_idxs[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
+            rand_points[i, :] = xis @ ps
+
+        return rand_points
+
+    def random_value_sample(self, field, n_samples):
+        """Return random values of field on surface weighted by area
+        
+        Parameters
+        ----------
+        n_samples : int
+            number of samples
+
+        Returns
+        -------
+        points, values :
+            points : (n_samples, 3) float ndarray
+                random points on the surface
+            values : (n_samples, *field_shape) float ndarray
+                values of the field at each random point
+        """
+        field_shape = (1,) 
+        
+        rand_points = np.empty((n_samples, 3))
+        rand_values = np.empty((n_samples, *field_shape))
+        rand_tri_idxs = self._random_triangle_idxs(n_samples)
+        rand_pt_params = self._random_triangle_points(n_samples)
+
+        for i in range(n_samples):
+            ps = self.mesh.points[rand_tri_idxs[i], :]  # (3, 3) ndarray of points
+            xis = rand_tri_idxs[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
+            rand_points[i, :] = xis @ ps
+
+        return rand_points
+
     def project(self, point):
         # TODO: Implement some utility for projecting points onto the mesh surface
         pass

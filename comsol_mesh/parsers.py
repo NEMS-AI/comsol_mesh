@@ -273,7 +273,7 @@ class COMSOLField:
         return COMSOLFieldParser.parse(path, *args, **kwargs)
 
 
-class Eigenmodes(COMSOLField):
+class COMSOLEigenmodes(COMSOLField):
     @classmethod
     def from_file(cls, path, point_dim=3, mode_dim=3):
         """Return Eigenmodes from COMSOL eigen-analysis CSV file
