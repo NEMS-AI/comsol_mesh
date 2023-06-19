@@ -6,9 +6,29 @@ Includes utitilties for interpolation, integration and random point selection.
 
 import numpy as np
 
+from itertools import zip_longest
 from scipy.spatial import KDTree
-
 from .parsers import COMSOLObjects, COMSOLField
+
+
+def is_broadcastable(shp1, shp2):
+    """Return True if shapes are broadcastable as numpy arrays"""
+    for a, b in zip(shp1[::-1], shp2[::-1]):
+        if a == 1 or b == 1 or a == b:
+            pass
+        else:
+            return False
+    return True
+
+
+def broadcast_shape(shp1, sph2):
+    """Return the shape of broadcast product of these arrays"""
+    if not is_broadcastable(shp1, sph2):
+        raise ValueError('Arrays are not broadcastable')
+    return tuple(
+        max(a, b) 
+        for a, b in zip_longest(shp1, sph2, fillvalue=1)
+    )
 
 
 class Mesh:
@@ -208,7 +228,7 @@ class Surface:
 
         for i in range(n_samples):
             ps = self.mesh.points[rand_tri_idxs[i], :]  # (3, 3) ndarray of points
-            xis = rand_tri_idxs[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
+            xis = rand_pt_params[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
             rand_points[i, :] = xis @ ps
 
         return rand_points
@@ -238,7 +258,7 @@ class Surface:
 
         for i in range(n_samples):
             ps = self.mesh.points[rand_tri_idxs[i], :]  # (3, 3) ndarray of points
-            xis = rand_tri_idxs[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
+            xis = rand_pt_params[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
             rand_points[i, :] = xis @ ps
 
         return rand_points
@@ -288,7 +308,13 @@ class MeshField:
         return self.values.shape[1:]
     
     def integrate(self):
-        """Return integral of field over mesh volume"""
+        """Return integral of field over mesh volume
+        
+        Returns
+        -------
+        (*field_shape) ndarray
+            integral of field over mesh volume
+        """
         points = self.mesh.points
         tet_indices = self.mesh.tet_indices
         acc = np.zeros(self.field_shape)
@@ -298,14 +324,58 @@ class MeshField:
             us = ps[1:, :] - ps[0, :]  # (3, 3) ndarray of point displacements
             J = abs(np.linalg.det(us))  # Jacobian
             # (*field_shape,) ndarray of element linear integral
-            el_int = J / 24 * np.sum(self.values[tet_indices[i, :], :], axis=0)
+            el_int = J / 24 * np.sum(self.values[tet_indices[i, :], ...], axis=0)
             acc += el_int
 
         return acc
 
     def integrate_product(self, g):
-        """Return integrate product of field and another field over mesh volume"""
-        pass
+        """Return integrate product of field and another field over mesh volume
+        
+        Parameters
+        ----------
+        g : MeshField
+            another field over the same mesh, `field_shape` of field and g
+            must be broadcastable 
+        
+        Raises
+        ------
+        ValueError :
+            - if `g` is not defined on the same mesh object
+            - if field shapes `self` and `g` are not broadcastable
+
+        Returns
+        -------
+        : (*broadcast_shape) ndarray 
+            intergral of the product of field and g. The shape of the integral
+            result is the broadcast result of
+        """
+        if g.mesh != self.mesh:
+            raise ValueError('g must be defined on the same mesh')
+        if not is_broadcastable(g.field_shape, self.field_shape):
+            raise ValueError(
+                f'The field shapes of self and g must be broadcastable as numpy'
+                f' arrays. {self.field_shape} and {g.field_shape} are not'
+                f' broadcastable.'
+            )
+
+        points = self.mesh.points
+        tet_indices = self.mesh.tet_indices
+        acc = np.zeros(broadcast_shape(self.field_shape, g.field_shape))
+
+        for i in range(self.mesh.n_tetrahedra):
+            ps = points[tet_indices[i, :], :]  # (4, 3) ndarray of points
+            us = ps[1:, :] - ps[0, :]  # (3, 3) ndarray of point displacements
+            J = abs(np.linalg.det(us))  # Jacobian
+
+            fs = self.values[tet_indices[i, :], ...]  # (4, self.field_shape)
+            gs = g.values[tet_indices[i, :], ...]     # (4, g.field_shape)
+            
+            for i in range(4):
+                for j in range(4):
+                    if i <= j:
+                        acc += J / 60 * fs[i, ...] * gs[j, ...]
+        return acc
 
     def L2_norm(self):
         """Return the L2 norm
@@ -315,6 +385,11 @@ class MeshField:
             L_2(f)^2 := ∫ | f(x) |^2 dV(x),
 
         where the integral is taken over the volume of the mesh.
+
+        Return
+        ------
+        float :
+            L2 norm of field over mesh
         """
         pass
 

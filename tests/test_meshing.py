@@ -76,6 +76,38 @@ class TestSurface:
         surf = Surface(mesh, tri_indices)
         assert surf.tri_normals == approx(np.array([
                 [ 0.,  0.,  1.],
-          
                 [ 0.,  0.,  1.]
-        ])) 
+        ]))
+
+
+class TestMeshField:
+    def test_integrate(self):
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ])
+        tet_indices = np.array([[0, 1, 2, 3]])
+        mesh = Mesh(points, tet_indices)
+
+        # Test uniform
+        values = np.array([1, 1, 1, 1]).reshape(4, 1)
+        field = MeshField(mesh, values)
+        assert field.integrate() == approx(1 / 6)
+
+        # Test asymmetric
+        values = np.array([1, -1, 6, 2]).reshape(4, 1)
+        field = MeshField(mesh, values)
+        assert field.integrate() == approx(1 / 3)
+
+        # Test (2,) shape
+        values = np.array([
+            [1, 1],
+            [1, -1],
+            [1, 6],
+            [1, 2]
+        ])
+        field = MeshField(mesh, values)
+        assert field.integrate() == approx(np.array([1 / 6, 1 / 3]))
+
