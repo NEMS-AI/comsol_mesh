@@ -1,2 +1,2 @@
-from .parsers import COMSOLObjects, COMSOLField, Eigenmodes
+from .parsers import COMSOLObjects, COMSOLField, COMSOLEigenmodes
 from .meshing import *
