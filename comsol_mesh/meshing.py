@@ -73,7 +73,7 @@ class Mesh:
         for i in range(self.n_tetrahedra):
             ps = points[tet_indices[i, :], :]  # (4, 3) ndarray of points
             us = ps[1:, :] - ps[0, :]          # (3, 3) ndarray of point displacements
-            tet_vol = abs(0.5 * np.linalg.det(us))  # volume of tetrahedra
+            tet_vol = abs(np.linalg.det(us) / 6)  # volume of tetrahedra
             vol_acc += tet_vol
 
         return vol_acc
@@ -249,11 +249,77 @@ class Surface:
 
 
 class MeshField:
-    """Field over 3-dimensional tetrahedral mesh"""
+    """Field over 3-dimensional tetrahedral mesh
+    
+    Attributes
+    ----------
+    mesh : Mesh
+        mesh field is defined on
+    values : (n_points, *field_shape) ndarray
+        values of field at each mesh point where `n_points` is the number of
+        points in the mesh. Field shape must be tuple at least length 1
+    field_shape : tuple[int]
+        shape of the field array at each mesh point (read only)
+    """
 
     def __init__(self, mesh, values):
+        """Return MeshField
+
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh field is defined on
+        values : (n_points, *field_shape) ndarray
+            values of field at each mesh point where `n_points` is the number of
+            points in the mesh. Field shape must be tuple at least length 1
+            
+        Raises
+        ------
+        ValueError : 
+            if value array has fewer than 2 dimensions
+        """
+        if len(values.shape) < 2:
+            raise ValueError('value array must have at least 2 dimensions')
         self.mesh = mesh
         self.values = values
+
+    @property
+    def field_shape(self):
+        return self.values.shape[1:]
+    
+    def integrate(self):
+        """Return integral of field over mesh volume"""
+        points = self.mesh.points
+        tet_indices = self.mesh.tet_indices
+        acc = np.zeros(self.field_shape)
+
+        for i in range(self.mesh.n_tetrahedra):
+            ps = points[tet_indices[i, :], :]  # (4, 3) ndarray of points
+            us = ps[1:, :] - ps[0, :]  # (3, 3) ndarray of point displacements
+            J = abs(np.linalg.det(us))  # Jacobian
+            # (*field_shape,) ndarray of element linear integral
+            el_int = J / 24 * np.sum(self.values[tet_indices[i, :], :], axis=0)
+            acc += el_int
+
+        return acc
+
+    def integrate_product(self, g):
+        """Return integrate product of field and another field over mesh volume"""
+        pass
+
+    def L2_norm(self):
+        """Return the L2 norm
+        
+        The L2 norm of a field is defined as 
+            
+            L_2(f)^2 := ∫ | f(x) |^2 dV(x),
+
+        where the integral is taken over the volume of the mesh.
+        """
+        pass
+
+    def eval_surface(self, surface, tri_idx, tri_params):
+        pass
 
     @classmethod
     def from_comsol_field(cls, mesh, comsol_field, tol=1e-10):
@@ -292,26 +358,11 @@ class MeshField:
         
         return cls(mesh=mesh, values=comsol_field.values[idxs])
     
-    def integrate(self):
-        """Return integral of field over mesh volume"""
-        pass
-
-    def integrate_product(self, g):
-        """Return integrate product of field and another field over mesh volume"""
-        pass
-
-    def L2_norm(self):
-        """Return the L2 norm
-        
-        The L2 norm of a field is defined as 
-            
-            L_2(f)^2 := ∫ | f(x) |^2 dV(x),
-
-        where the integral is taken over the volume of the mesh.
-        """
-        pass
-    
-
+    def __repr__(self):
+        return (
+            f'{self.__class__.__name__}(mesh={self.mesh!r},'
+            f' field_shape={self.field_shape})'
+        )
 
 # ------------------------------------------------------------------------------
 # Eliminate this code and turn this into a method for projecting points onto a

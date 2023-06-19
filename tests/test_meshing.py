@@ -19,13 +19,13 @@ class TestMesh:
         ])
         tet_indices = np.array([[0, 1, 2, 3]])
         mesh = Mesh(points, tet_indices)
-        assert mesh.volume() == approx(0.5)
+        assert mesh.volume() == approx(1 / 6)
 
         mesh = Mesh(2 * points, tet_indices)
-        assert mesh.volume() == approx(0.5 * 2 ** 3)
+        assert mesh.volume() == approx(1 / 6 * 2 ** 3)
         
         mesh = Mesh(-points, tet_indices)
-        assert mesh.volume() == approx(0.5)
+        assert mesh.volume() == approx(1 / 6)
 
         points = np.array([
             [0, 0, 0],
@@ -34,7 +34,7 @@ class TestMesh:
             [0, 0, 3]
         ])
         mesh = Mesh(points, tet_indices)
-        assert mesh.volume() == approx(3)
+        assert mesh.volume() == approx(1)
 
 
 class TestSurface:
