@@ -73,7 +73,7 @@ class Mesh:
         for i in range(self.n_tetrahedra):
             ps = points[tet_indices[i, :], :]  # (4, 3) ndarray of points
             us = ps[1:, :] - ps[0, :]          # (3, 3) ndarray of point displacements
-            tet_vol = 0.5 * np.linalg.det(us)  # volume of tetrahedra
+            tet_vol = abs(0.5 * np.linalg.det(us))  # volume of tetrahedra
             vol_acc += tet_vol
 
         return vol_acc
