@@ -5,11 +5,12 @@ import re
 import numpy as np
 import pandas as pd
 
+from textwrap import indent
 from dataclasses import dataclass
 
 
-class COMSOLMesh:
-    """Container for COMSOL mesh file header and objects
+class COMSOLObjects:
+    """Collection of COMSOL mesh objects
     
     Attributes
     ----------
@@ -26,18 +27,40 @@ class COMSOLMesh:
         self.objects.append(obj)
 
     @property
-    def n_objects(self):
+    def n_declared_objects(self):
+        """Return number of objects declared in header"""
         return len(self.header['types'])
-    
+
     @classmethod
     def from_file(cls, path):
-        return COMSOLMeshParser.parse(path)
+        return COMSOLFileParser.parse(path)
+
+    def __len__(self):
+        return len(self.objects)
     
+    def __getitem__(self, key):
+        return self.objects[key]
+
+    @staticmethod
+    def obj_repr(obj_dict):
+        n_vertices = obj_dict['n_vertices']
+        type_reprs = [
+            'COMSOLType(type_name={type_name}, n_elements={n_elements})'.format(**t)
+            for t in obj_dict['types']
+        ]
+
+        obj_repr = (
+            f'COMSOLObj(\n    n_vertices={n_vertices},\n    types=[\n'
+            + ' ' * 8 + ('\n' + ' ' * 8).join(type_reprs) + '    \n    ]\n)\n'
+        )
+        return obj_repr
+
     def __repr__(self):
-        return f'{self.__class__.__name__}(n_object={self.n_objects})'
+        obj_reprs = indent(',\n'.join(map(self.obj_repr, self.objects)), ' ' * 4)
+        return f'{self.__class__.__name__}(\n{obj_reprs})'
 
 
-class COMSOLMeshParser:
+class COMSOLFileParser:
     """Parser for COMSOL mesh .mphtxt files
 
     Examples
@@ -58,9 +81,9 @@ class COMSOLMeshParser:
         with open(path) as stream:
             parser = cls(path, stream)
             header = parser.parse_header()
-            mesh = COMSOLMesh(header)
+            mesh = COMSOLObjects(header)
             
-            for i in range(mesh.n_objects):
+            for i in range(mesh.n_declared_objects):
                 obj = parser.parse_object()
                 mesh.append_object(obj)
         
