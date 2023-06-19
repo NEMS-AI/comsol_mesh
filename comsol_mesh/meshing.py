@@ -396,8 +396,27 @@ class MeshField:
         l2_norm = np.sqrt(l2_sq)
         return l2_norm
 
-    def eval_surface(self, surface, tri_idx, tri_params):
-        pass
+    def eval_surface(self, surface, tri_idx, xis):
+        """Return value of field at surface point
+        
+        Parameters
+        ----------
+        surface : Surface
+            surface to evaluate field on
+        tri_idx : int
+            index of surface triangle containing evaluation point
+        xis : (3,) float ndarray
+            parameters of point in triangle (ξ₁, ξ₂, ξ₃)
+
+        Returns
+        -------
+        value : (*field_shape) float ndarray
+            value of field at evaluation point
+        """
+        pt_idxs = surface.tri_indices[tri_idx]  # (3,) ndarray indices of triangle points
+        fs = self.values[pt_idxs, ...]  # (3, *field_shape) ndarray field values
+        value = xis @ fs
+        return value
 
     @classmethod
     def from_comsol_field(cls, mesh, comsol_field, tol=1e-10):
