@@ -4,6 +4,9 @@ Methods for unstructured tetrahedral meshes.
 Includes utitilties for interpolation, integration and random point selection.
 """
 
+import numpy as np
+
+from scipy.spatial import KDTree
 from parsers import COMSOLFile, COMSOLField
 
 
@@ -20,6 +23,9 @@ class Mesh:
     def __init__(self, points, tet_indices):
         self.points = points
         self.tet_indices = tet_indices
+
+        # Build KDTree for fast nearest point method
+        self._pt_tree = KDTree(points)
 
     @property
     def n_points(self):
@@ -65,8 +71,36 @@ class MeshSurface:
     def __init__(self, mesh, tri_indices):
         self.mesh = mesh
         self.tri_indices = tri_indices
+        self.tri_areas = self._triangle_areas(mesh, tri_indices)
 
-        # TODO: precompute area of triangles
+    @staticmethod
+    def _triangle_areas(self, mesh, tri_indices):
+        """Return areas of surface triangles
+        
+        Parameters
+        ----------
+        mesh : Mesh
+            unstructured tetrahedral mesh on which surface is defined
+        tri_indices : (n_triangles, 3) int ndarray
+            ordered indices of triangles
+
+        Returns
+        -------
+        areas : (n_triangles,) float ndarray
+            array of triangle areas
+        """
+        n_triangles = tri_indices.shape[0]
+        areas = np.empty(n_triangles)
+
+        for i in range(n_triangles):
+            j1, j2, j3 = tri_indices[i]
+            p1 = mesh.points[j1, :]
+            p2 = mesh.points[j2, :]
+            p3 = mesh.points[j3, :]
+
+            area = 0.5 * np.cross(p3 - p1, p2 - p1)
+            areas[i] = area
+        return areas
 
     def random_triangle_sample(self, n_samples):
         """Return random sampling of triangle indices weighted by area
@@ -84,6 +118,7 @@ class MeshSurface:
         # TODO: Implement
         pass
 
+    
     def project(self, point):
         # TODO: Implement some utility for projecting points onto the mesh surface
         pass
@@ -97,13 +132,42 @@ class MeshField:
         self.values = values
 
     @classmethod
-    def from_comsol_field(cls, comsol_field: COMSOLField):
-        values = comsol_field.values
-        points = comsol_field.points
+    def from_comsol_field(cls, mesh, comsol_field, tol=1e-10):
+        """Return field over mesh from the values of a COMSOLField
 
-        # TODO: Implement association of points with mesh indices
-        # Use a KDTree
+        The values of the field for each point in the mesh is determined by
+        taken the closest point in the comsol_field object.
 
+        Parameters
+        ----------
+        comsol_field : COMSOLField
+            field of values on a collection of points from CSV file
+        tol : float
+            maximum acceptable distance between a mesh point and closest field 
+            point
+
+        Raises
+        ------
+        ValueError :
+            if the distance between a mesh point and the closest field point is
+            above `tol`
+
+        Returns
+        -------
+        MeshField
+            mesh field
+        """
+        cf_pt_tree = KDTree(comsol_field.points)
+        dists, idxs = cf_pt_tree.query(mesh.points)
+
+        if np.any(dists > tol):
+            raise ValueError(
+                'Mesh point is too far from nearest COMSOLField point.'
+                ' Exceeds tolerance!'
+            )
+        
+        return cls(mesh=mesh, values=comsol_field.values[idxs])
+    
     def integrate(self):
         """Return integral of field over mesh volume"""
         pass
