@@ -330,7 +330,7 @@ class COMSOLFieldParser:
         """Return COMSOL CSV as dataframe"""
         header_lines = cls._parse_header_lines(path)
         
-        last_header_line = parse_header_lines(path)[-1]
+        last_header_line = header_lines(path)[-1]
         field_names = [
             entry.strip()
             for entry in last_header_line.split(',')
