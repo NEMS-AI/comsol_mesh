@@ -1,11 +1,11 @@
 """
-Methods for parsing COMSOL mesh files `.mphtxt`
+Methods for parsing output from COMSOL files
 """
 import re
 import numpy as np
 
 
-class COMSOLFile:
+class COMSOLMesh:
     """Container for COMSOL file header and objects"""
     def __init__(self, header, objects=[]):
         self.header = header
@@ -27,6 +27,7 @@ class COMSOLParser:
 
     Examples
     --------
+    Parsing a file
     >>> path = 'example.mphtxt'
     >>> comsol_mesh = COMSOLParser.parse(path)
     """
@@ -36,6 +37,19 @@ class COMSOLParser:
         self.stream = stream
         self.line_index = 0
         self.last_line = None
+
+    @classmethod
+    def parse(cls, path):
+        with open(path) as stream:
+            parser = cls(path, stream)
+            header = parser.parse_header()
+            mesh = COMSOLFile(header)
+            
+            for i in range(mesh.n_objects):
+                obj = parser.parse_object()
+                mesh.append_object(obj)
+        
+        return mesh
 
     def parse_header(self):
         """Parse header of COMSOL .mphtxt file"""
@@ -182,19 +196,6 @@ class COMSOLParser:
                 line = line.strip()
                 self.last_line = line
                 return line
-
-    @classmethod
-    def parse(cls, path):
-        with open(path) as stream:
-            parser = cls(path, stream)
-            header = parser.parse_header()
-            mesh = COMSOLFile(header)
-            
-            for i in range(mesh.n_objects):
-                obj = parser.parse_object()
-                mesh.append_object(obj)
-        
-        return mesh
 
 
 class COMSOLParserError(Exception):
