@@ -223,11 +223,11 @@ class COMSOLField:
     ----------
     points : (N, dim_point) ndarray
         points which the eigenmodes are provided on
-    field : (N, *field_shape) ndarray
+    values : (N, *field_shape) ndarray
         values of the eigenmode on the collection of points
     """
     points:np.ndarray
-    field:np.ndarray
+    values:np.ndarray
 
     @property
     def n_points(self):
@@ -258,8 +258,8 @@ class COMSOLFieldParser:
         """
         field_df = cls._parse_CSV_to_dataframe(cls, path)
         points = np.array(field_df.iloc[:, 0:point_dim])
-        field = np.array(field_df.iloc[:, point_dim:])
-        return COMSOLField(points, field)
+        values = np.array(field_df.iloc[:, point_dim:])
+        return COMSOLField(points, values)
     
     @classmethod
     def _parse_CSV_to_dataframe(cls, path):
@@ -315,6 +315,6 @@ class EigenmodesParser(COMSOLFieldParser):
         :COMSOLField
             modes of eigen-analysis
         """
-        fobj = super().parse(path, point_dim)
-        fobj.field = fobj.field.reshape(fobj.n_points, -1, mode_dim)
-        return fobj
+        field = super().parse(path, point_dim)
+        field.values = field.values.reshape(field.n_points, -1, mode_dim)
+        return field

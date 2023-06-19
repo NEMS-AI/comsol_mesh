@@ -14,7 +14,7 @@ class Mesh:
     ----------
     points : (n_points, 3) ndarray
         vertices of tetrahedral mesh
-    tet_indices : (n_tetrahedra, 4) ndarray
+    tet_indices : (n_tetrahedra, 4) int ndarray
         point indices of tetrahedra in mesh
     """
     def __init__(self, points, tet_indices):
@@ -35,7 +35,7 @@ class Mesh:
         points = comsol_file['vertices']
 
         # Find tetrahedral object
-        for type_dict in comsol_obj['types']:
+        for type_dict in comsol_file['types']:
             if type_dict['type_name'] == 'tet':
                 tet_type_dict = type_dict
                 break
@@ -44,6 +44,49 @@ class Mesh:
 
         tet_indices = tet_type_dict['element_indices'] - lowest_vertex_index
         return cls(points, tet_indices)
+    
+    def volume(self):
+        """Return volume of mesh"""
+        pass
+
+
+class MeshSurface:
+    """Surface of unstructured 3-dimensional mesh
+    
+    A surface is defined as a collection of triangles
+
+    Parameters
+    ----------
+    mesh : Mesh
+        unstructured tetrahedral mesh on which surface is defined
+    tri_indices : (n_triangles, 3) int ndarray
+        ordered indices of triangles
+    """
+    def __init__(self, mesh, tri_indices):
+        self.mesh = mesh
+        self.tri_indices = tri_indices
+
+        # TODO: precompute area of triangles
+
+    def random_triangle_sample(self, n_samples):
+        """Return random sampling of triangle indices weighted by area
+        
+        Parameters
+        ----------
+        n_samples : int
+            number of samples
+
+        Returns
+        -------
+        (n_samples,) int ndarray
+            indices of random triangles
+        """
+        # TODO: Implement
+        pass
+
+    def project(self, point):
+        # TODO: Implement some utility for projecting points onto the mesh surface
+        pass
 
 
 class MeshField:
@@ -55,4 +98,158 @@ class MeshField:
 
     @classmethod
     def from_comsol_field(cls, comsol_field: COMSOLField):
-        values = comsol+
+        values = comsol_field.values
+        points = comsol_field.points
+
+        # TODO: Implement association of points with mesh indices
+        # Use a KDTree
+
+    def integrate(self):
+        """Return integral of field over mesh volume"""
+        pass
+
+    def integrate_product(self, g):
+        """Return integrate product of field and another field over mesh volume"""
+        pass
+
+    def L2_norm(self):
+        """Return the L2 norm
+        
+        The L2 norm of a field is defined as 
+            
+            L_2(f)^2 := ∫ | f(x) |^2 dV(x),
+
+        where the integral is taken over the volume of the mesh.
+        """
+        pass
+    
+
+
+# ------------------------------------------------------------------------------
+# Eliminate this code and turn this into a method for projecting points onto a
+# surface.
+# ------------------------------------------------------------------------------
+
+
+def triangle_pcoordinates(p, ps):
+    """Return triangle coordinates (xi1, xi2, xi3) for point p in triangle (p1, p2, p3)
+    
+    Parameters
+    ----------
+    p : (d,) ndarray
+        point in triangle
+    ps : (3, d) ndarray
+        points as rows of the matrix
+    
+    Returns
+    -------
+    (3,) ndarray
+        triangular coordinates
+    """
+    A = np.empty((3, 2))
+    coords = np.empty(3)
+    
+    A[:, 0] = p1 - p3
+    A[:, 1] = p2 - p3
+    b = p - p3
+    
+    coords[:2] = np.linalg.lstsq(A, b, rcond=False)[0]
+    coords[2] = 1 - coords[0] - coords[1]
+    return coords
+
+
+def triangle_interpolate(p, ps, us):
+    """Return linear interpolation at point p given values at nodes
+    
+    Point is not projected onto the mesh
+    
+    Parameters
+    ----------
+    p : (d,) ndarray
+        point in triangle
+    ps : (3, d) ndarray
+        points as rows of the matrix
+    us : (3, df) ndarray
+        values of function at triangle nodes
+        
+    Returns
+    -------
+    (df,) ndarray
+        value of df-dimensional linear interpolation at point p
+    """
+    coords = np.linalg.lstsq(ps.T, p, rcond=False)[0]
+    
+    dims = np.ones(us.ndim, int)
+    dims[0] = -1
+    
+    value = np.sum(coords.reshape(dims) * us, axis=0)
+    return value
+        
+    
+class MeshInterp:
+    """Structure for linear interpolation over mesh points
+    
+    The values at each mesh point can be an arbitrary array
+    
+    Parameters
+    ----------
+    points : (n, d) ndarray
+        points as rows of the matrix
+    mesh_values : (n, *dfs) ndarray
+        values of function at mesh nodes
+    """
+    
+    def __init__(self, points, mesh_values):
+        # Check Arguments
+        
+        if mesh_values.ndim < 2:
+            raise ValueError('mesh_values should be at least 2-dimensional')
+        
+        n_mesh_values, *mesh_df = mesh_values.shape
+        n_pts, pt_dim = points.shape
+            
+        if n_pts != n_mesh_values:
+            raise ValueError("size of first dimension of mesh_values should match num. pts.")
+        
+        # Store data & build KDTree
+        self._points = points
+        self.tree = sc.spatial.KDTree(points)
+        self.mesh_values = mesh_values
+        self.mesh_df = mesh_df
+        self.pt_dim = pt_dim
+    
+    def __call__(self, ps):
+        """Return function on mesh at points ps
+        
+        Linear interpolation is used to compute the value of the function value 
+        at the point.
+        
+        Parameters
+        ----------
+        ps : (m, pt_dim) ndarray 
+            points to project and evaluate modes at
+        
+        Returns
+        -------
+        values : (m, *mesh_df) ndarray
+            values of function on the mesh
+        """
+        
+        # Check argument
+        if ps.ndim != 2:
+            raise ValueError('point array should have 2 dimensions')
+        elif ps.shape[1] != self.pt_dim:
+            raise ValueError(f'points should have dimension {self.pt_dim}')
+        
+        m, _ = ps.shape
+        values = np.empty((m, *self.mesh_df))
+        
+        for i in range(m):
+            p = ps[i, :]
+            _, idxs = self.tree.query(p, k=3)
+            
+            mesh_pts = self._points[idxs, :]
+            mesh_pts_us = self.mesh_values[idxs, ...]
+            values[i, :] = triangle_interpolate(p, mesh_pts, mesh_pts_us)
+        
+        return values
