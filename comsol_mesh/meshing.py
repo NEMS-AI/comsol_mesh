@@ -71,6 +71,7 @@ class MeshSurface:
     def __init__(self, mesh, tri_indices):
         self.mesh = mesh
         self.tri_indices = tri_indices
+        
         self.tri_areas = self._triangle_areas(mesh, tri_indices)
 
     @staticmethod
