@@ -387,10 +387,16 @@ class Field:
         Raises
         ------
         ValueError : 
-            if value array has fewer than 2 dimensions
+            - if value array has fewer than 2 dimensions
+            - if number of values given does not match number of points in mesh
         """
         if len(values.shape) < 2:
-            raise ValueError('value array must have at least 2 dimensions')
+            raise ValueError('Value array must have at least 2 dimensions')
+        if values.shape[0] != mesh.n_points:
+            raise ValueError(
+                f'First axis of `values` array ({values.shape[0]}) should match'
+                f' number of points in mesh ({mesh.n_points}).'
+            )
         self.mesh = mesh
         self.values = values
 
