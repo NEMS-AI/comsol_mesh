@@ -174,17 +174,15 @@ class Surface:
             normals[i, :] = nn / nn_norm
         return areas, normals
 
-    @staticmethod
     def _random_triangle_idxs(self, n_samples):
         """Return the indices of random triangles weighted by area"""
         tri_areas = self.tri_areas
         total_area = np.sum(tri_areas)
         probs = tri_areas / total_area
         
-        rand_tri_idxs = np.choice(size=n_samples, p=probs)
+        rand_tri_idxs = np.random.choice(self.n_triangles, size=n_samples, p=probs)
         return rand_tri_idxs
 
-    @staticmethod
     def _random_triangle_points(self, n_samples):
         """Return random samples of points in canonical triangle
         
@@ -239,7 +237,8 @@ class Surface:
         rand_pt_params = self._random_triangle_points(n_samples)
 
         for i in range(n_samples):
-            ps = self.mesh.points[rand_tri_idxs[i], :]  # (3, 3) ndarray of points
+            pt_indices = self.tri_indices[rand_tri_idxs[i]]
+            ps = self.mesh.points[pt_indices, :]  # (3, 3) ndarray of points
             xis = rand_pt_params[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
             rand_points[i, :] = xis @ ps
 
@@ -269,7 +268,8 @@ class Surface:
         rand_xis = self._random_triangle_points(n_samples)
 
         for i in range(n_samples):
-            ps = self.mesh.points[rand_tri_idxs[i], :]  # (3, 3) ndarray of points
+            pt_indices = self.tri_indices[rand_tri_idxs[i]]
+            ps = self.mesh.points[pt_indices, :]  # (3, 3) ndarray of points
             xis = rand_xis[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
             rand_points[i, :] = xis @ ps
             rand_values[i, ...] = field.eval_surface(
@@ -510,9 +510,10 @@ class Field:
         value : (*field_shape) float ndarray
             value of field at evaluation point
         """
+        xis = np.asanyarray(xis)
         pt_idxs = surface.tri_indices[tri_idx]  # (3,) ndarray indices of triangle points
         fs = self.values[pt_idxs, ...]  # (3, *field_shape) ndarray field values
-        value = xis @ fs
+        value = np.tensordot(xis, fs, 1)
         return value
 
     @classmethod
