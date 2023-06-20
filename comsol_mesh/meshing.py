@@ -474,7 +474,7 @@ class Field:
                         acc += J / 60 * fs[i, ...] * gs[j, ...]
         return acc
 
-    def L2_norm(self):
+    def L2_norm(self, axis=None):
         """Return the L2 norm
         
         The L2 norm of a field is defined as 
@@ -483,13 +483,19 @@ class Field:
 
         where the integral is taken over the volume of the mesh.
 
+        Parameters
+        ----------
+        axis : None | int | tuple[int]    (optional)
+            axes to sum components for L2 norm over. If None then no summation
+            is performed
+
         Return
         ------
         float :
             L2 norm of field over mesh
         """
         components = self.integrate_product(self)
-        l2_sq = components.sum()
+        l2_sq = components.sum(axis=axis) if axis != None else components
         l2_norm = np.sqrt(l2_sq)
         return l2_norm
 
