@@ -6,7 +6,9 @@ Includes utitilties for interpolation, integration and random point selection.
 
 import numpy as np
 
+from textwrap import indent
 from itertools import zip_longest
+from collections import defaultdict
 from scipy.spatial import KDTree
 from .parsers import COMSOLObjects, COMSOLField
 
@@ -31,6 +33,9 @@ def broadcast_shape(shp1, sph2):
     )
 
 
+# ------------------------------------------------------------------------------
+# Mesh
+# ------------------------------------------------------------------------------
 class Mesh:
     """Unstructured 3-dimensional tetrahedral mesh
     
@@ -105,6 +110,9 @@ class Mesh:
         )
 
 
+# ------------------------------------------------------------------------------
+# Surface
+# ------------------------------------------------------------------------------
 class Surface:
     """Surface of unstructured 3-dimensional mesh
     
@@ -126,6 +134,10 @@ class Surface:
         self.tri_areas = tri_areas
         self.tri_normals = tri_normals
 
+    @property
+    def n_triangles(self):
+        return self.tri_indices.shape[0]
+    
     @staticmethod
     def _triangle_properties(mesh, tri_indices):
         """Return areas and normals of surface triangles
@@ -249,25 +261,104 @@ class Surface:
             values : (n_samples, *field_shape) float ndarray
                 values of the field at each random point
         """
-        field_shape = (1,)
+        field_shape = field.field_shape
         
         rand_points = np.empty((n_samples, 3))
         rand_values = np.empty((n_samples, *field_shape))
         rand_tri_idxs = self._random_triangle_idxs(n_samples)
-        rand_pt_params = self._random_triangle_points(n_samples)
+        rand_xis = self._random_triangle_points(n_samples)
 
         for i in range(n_samples):
             ps = self.mesh.points[rand_tri_idxs[i], :]  # (3, 3) ndarray of points
-            xis = rand_pt_params[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
+            xis = rand_xis[i, :]   # (3,) ndarray of (ξ₁, ξ₂, ξ₃)
             rand_points[i, :] = xis @ ps
+            rand_values[i, ...] = field.eval_surface(
+                surface=self, 
+                tri_idx=rand_tri_idxs[i],
+                xis=rand_xis[i, :]
+            )
 
-        return rand_points
+        return rand_points, rand_values
 
+    def points(self):
+        """Return coordinates of points on surface
+        
+        Returns 
+        -------
+        points : (n_points, 3) float ndarray
+            coordinates of points on the surface
+        """
+        point_idxs = np.unique(self.tri_indices)
+        return self.mesh.points[point_idxs, :]
+    
     def project(self, point):
         # TODO: Implement some utility for projecting points onto the mesh surface
         pass
 
+    def __repr__(self):
+        fields = ',\n'.join([
+            f'mesh={self.mesh!r}',
+            f'n_triangles={self.n_triangles}'
+        ])
 
+        return f'{self.__class__.__name__}(\n' + indent(fields, ' ' * 4) + '\n)'
+
+
+def surfaces_from_comsol_obj(mesh, comsol_obj):
+    """Return surfaces defined by COMSOL object
+    
+    A COMSOL object typically has several types which given as a list of dicts
+    under the 'types' key. Examples of types are; 
+        vtx - vertices (or points)
+        edg - edges
+        tri - triangles
+        tet - tetrahedra
+    
+    The triangles (tri) type defines the surfaces of the COMSOL mesh object and
+    this function converts this representation into a list of surfaces on the
+    provided mesh object.
+    
+    Parameters
+    ----------
+    mesh : Mesh
+        mesh to define surfaces on
+    comsol_obj : dict
+        dictionary defining a COMSOL object
+        
+    Returns
+    -------
+    surfaces : list[Surface]
+        list of surfaces defined on the mesh
+    """
+    # Find first type with 'tri' type name
+    tri_dict = [
+        t_dict 
+        for t_dict in comsol_obj['types'] 
+        if t_dict['type_name'] == 'tri'
+    ][0]
+    
+    # Build list of triangles associated with each geometry id
+    geom_entry_idxs = tri_dict['geom_entry_idxs']
+    geom_mapping = defaultdict(list)
+
+    for i, geom_id in enumerate(geom_entry_idxs):
+        geom_mapping[geom_id].append(i)
+
+    # Build list of surfaces
+    tri_indices_all = tri_dict['element_indices']
+    lowest_vertex_id = comsol_obj['lowest_vertex_index']
+    surfaces = []
+    
+    for geom_id in sorted(geom_mapping.keys()):
+        tri_indices = tri_indices_all[geom_mapping[geom_id], :] - lowest_vertex_id
+        s = Surface(mesh, tri_indices)
+        surfaces.append(s)
+        
+    return surfaces
+
+# ------------------------------------------------------------------------------
+# Field
+# ------------------------------------------------------------------------------
 class Field:
     """Field over 3-dimensional tetrahedral mesh
     
@@ -461,12 +552,11 @@ class Field:
             f' field_shape={self.field_shape})'
         )
 
+
 # ------------------------------------------------------------------------------
 # Eliminate this code and turn this into a method for projecting points onto a
 # surface.
 # ------------------------------------------------------------------------------
-
-
 def triangle_pcoordinates(p, ps):
     """Return triangle coordinates (xi1, xi2, xi3) for point p in triangle (p1, p2, p3)
     
