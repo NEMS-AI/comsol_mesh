@@ -103,7 +103,7 @@ class TestSurface:
         ]))
 
 
-class TestMeshField:
+class TestField:
     def test_integrate(self):
         points = np.array([
             [0, 0, 0],
@@ -185,3 +185,39 @@ class TestMeshField:
         field = Field(mesh, values)
         assert field.integrate_product(field) == approx(np.array([1/6, 53/60]))
         
+    def test_eval_surface(self):
+        # Define mesh
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+        ])
+        tet_indices = np.array([]).reshape((0, 4))
+        mesh = Mesh(points, tet_indices)
+
+        # Define surface
+        tri_indices = np.array([[0, 1, 2]])
+        surface = Surface(mesh, tri_indices)
+
+        # Define field
+        values = np.array([1, 1, 1]).reshape((3, 1))
+        field = Field(mesh, values)
+
+        xis_set = [
+            np.array([1.0, 0.0, 0.0]),
+            np.array([0.0, 1.0, 0.0]),
+            np.array([0.0, 0.0, 1.0]),
+            np.array([1/3, 1/3, 1/3])
+        ]
+
+        for xis in xis_set:
+            assert field.eval_surface(surface, 0, xis) == approx(np.array([1.0]))
+            
+        # Test f(x, y) = x + 2y 
+        values = np.array([0, 1, 2]).reshape((3, 1))
+        field = Field(mesh, values)
+        expected = [0.0, 1.0, 2.0, 1.0]
+
+        for (xis, expect) in zip(xis_set, expected):
+            assert field.eval_surface(surface, 0, xis) == approx(np.array([expect]))
+    
