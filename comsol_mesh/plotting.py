@@ -13,6 +13,11 @@ from bokeh.layouts import Column, gridplot, Row
 palette = palettes.Category10[10]
 
 
+def extent(values):
+    """Return difference between max and min value"""
+    return max(values) - min(values)
+
+
 def plot_points(points):
     """Return Bokeh plot of points plotted on xz and yz axes
     
@@ -43,6 +48,12 @@ def plot_points(points):
         p.scatter(points[:, i1], points[:, i2])
         p.xaxis.axis_label_text_font_size = '14pt'
         p.yaxis.axis_label_text_font_size = '14pt'
+
+        if extent(points[:, i1]) < 1e-10:
+            p.x_range.range_padding_units = 'absolute'
+
+        if extent(points[:, i2]) < 1e-10:
+            p.y_range.range_padding_units = 'absolute'
 
         ps.append(p)
     
