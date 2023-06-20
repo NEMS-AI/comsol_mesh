@@ -10,3 +10,6 @@ To install `git clone` the package and run either of the follow commands in the 
 pip install -e .  # using pip
 conda develop .   # or, using conda 
 ```
+
+## Roadmap
+Implement method to project points onto the surface of a mesh.
