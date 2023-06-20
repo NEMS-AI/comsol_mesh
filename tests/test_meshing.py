@@ -116,12 +116,12 @@ class TestMeshField:
 
         # Test uniform
         values = np.array([1, 1, 1, 1]).reshape(4, 1)
-        field = MeshField(mesh, values)
+        field = Field(mesh, values)
         assert field.integrate() == approx(1 / 6)
 
         # Test asymmetric
         values = np.array([1, -1, 6, 2]).reshape(4, 1)
-        field = MeshField(mesh, values)
+        field = Field(mesh, values)
         assert field.integrate() == approx(1 / 3)
 
         # Test (2,) shape
@@ -131,7 +131,7 @@ class TestMeshField:
             [1, 6],
             [1, 2]
         ])
-        field = MeshField(mesh, values)
+        field = Field(mesh, values)
         assert field.integrate() == approx(np.array([1 / 6, 1 / 3]))
 
     def test_integrate_product(self):
@@ -147,10 +147,10 @@ class TestMeshField:
         mesh = Mesh(points, tet_indices)
 
         values1 = np.array([1, 1, 1, 1]).reshape(4, 1)
-        field1 = MeshField(mesh, values1)
+        field1 = Field(mesh, values1)
 
         values2 = np.array([1, 1, 1, 1]).reshape(4, 1)
-        field2 = MeshField(mesh, values2)
+        field2 = Field(mesh, values2)
         assert field1.integrate_product(field2) == approx(1 / 6)
 
         # Test 2: Test vector
@@ -165,7 +165,7 @@ class TestMeshField:
         mesh = Mesh(points, tet_indices)
 
         values = np.array([1, 2, -1, 6]).reshape(4, 1)
-        field = MeshField(mesh, values)
+        field = Field(mesh, values)
         assert field.integrate_product(field) == approx(53 / 60)
 
         # Test 3: Test vector
@@ -182,6 +182,6 @@ class TestMeshField:
         values = np.array([
             [1, 1], [1, 2], [1, -1], [1, 6]
         ])
-        field = MeshField(mesh, values)
+        field = Field(mesh, values)
         assert field.integrate_product(field) == approx(np.array([1/6, 53/60]))
         

@@ -249,7 +249,7 @@ class Surface:
             values : (n_samples, *field_shape) float ndarray
                 values of the field at each random point
         """
-        field_shape = (1,) 
+        field_shape = (1,)
         
         rand_points = np.empty((n_samples, 3))
         rand_values = np.empty((n_samples, *field_shape))
@@ -268,7 +268,7 @@ class Surface:
         pass
 
 
-class MeshField:
+class Field:
     """Field over 3-dimensional tetrahedral mesh
     
     Attributes
