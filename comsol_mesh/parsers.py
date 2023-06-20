@@ -320,7 +320,7 @@ class COMSOLFieldParser:
         :COMSOLField
             field defined on a collection of points
         """
-        field_df = cls._parse_CSV_to_dataframe(cls, path)
+        field_df = cls._parse_CSV_to_dataframe(path)
         points = np.array(field_df.iloc[:, 0:point_dim])
         values = np.array(field_df.iloc[:, point_dim:])
         return COMSOLField(points, values)
@@ -330,7 +330,7 @@ class COMSOLFieldParser:
         """Return COMSOL CSV as dataframe"""
         header_lines = cls._parse_header_lines(path)
         
-        last_header_line = header_lines(path)[-1]
+        last_header_line = header_lines[-1]
         field_names = [
             entry.strip()
             for entry in last_header_line.split(',')
