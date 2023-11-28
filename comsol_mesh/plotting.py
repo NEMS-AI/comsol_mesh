@@ -42,7 +42,8 @@ def plot_points(points):
             height=400,
             margin=20,
             x_axis_label=labels[i1],
-            y_axis_label=labels[i2]
+            y_axis_label=labels[i2],
+            match_aspect=True
         )
 
         p.scatter(points[:, i1], points[:, i2])

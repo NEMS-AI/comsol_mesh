@@ -134,6 +134,19 @@ class Surface:
         self.tri_areas = tri_areas
         self.tri_normals = tri_normals
 
+        # Precompute KDTree for nearest point projection
+        points = mesh.points
+        n_tris = tri_indices.shape[0]
+        self.tri_midpoints = np.empty((n_tris, 3), dtype=float)
+
+        for i in range(n_tris):
+            i1, i2, i3 = tri_indices[i, :]
+
+            self.tri_midpoints[i, :] = (
+                points[i1, :] + points[i2, :] + points[i3, :]
+            ) / 3
+        self.tri_tree = KDTree(self.tri_midpoints)
+
     @property
     def n_triangles(self):
         return self.tri_indices.shape[0]
@@ -292,8 +305,28 @@ class Surface:
         return self.mesh.points[point_idxs, :]
     
     def project(self, point):
-        # TODO: Implement some utility for projecting points onto the mesh surface
-        pass
+        """Return triangle index and coordinates of point projected onto surface
+
+        Parameters
+        ----------
+        point : (3,) float ndarray
+            coordinates of point to project
+        
+        Returns
+        -------
+        (tri_idx, xis)
+
+        tri_idx : int
+            index of triangle in surface
+        xis : (3,) float ndarray
+            parameters of point in triangle (ξ₁, ξ₂, ξ₃)
+        """
+        _, tri_idx = self.tri_tree.query(point, k=1)
+        point_idxs = self.tri_indices[tri_idx, :]
+        tri_points = self.mesh.points[point_idxs, :]
+        xis = np.linalg.lstsq(tri_points.T, point, rcond=False)[0]
+
+        return tri_idx, xis
 
     def __repr__(self):
         fields = ',\n'.join([
@@ -521,6 +554,24 @@ class Field:
         fs = self.values[pt_idxs, ...]  # (3, *field_shape) ndarray field values
         value = np.tensordot(xis, fs, 1)
         return value
+
+    def eval_surface_point(self, surface, point):
+        """Return value of field a point projected onto surface
+        
+        Parameters
+        ----------
+        surface : Surface
+            surface to evaluate field on
+        point : (3,) float ndarray
+            point to project onto surface
+
+        Returns
+        -------
+        value : (*field_shape) float ndarray
+            value of field at evaluation point
+        """
+        tri_idx, xis = surface.project(point)
+        return self.eval_surface(surface, tri_idx, xis)
 
     @classmethod
     def from_comsol_field(cls, mesh, comsol_field, tol=1e-10):
